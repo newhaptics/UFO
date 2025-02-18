@@ -245,7 +245,7 @@ class AppAgentProcessor(BaseProcessor):
         # Get the control information for the control items and the filtered control items, in a format of list of dictionaries.
         self._control_info = self.control_inspector.get_control_info_list_of_dict(
             self._annotation_dict,
-            ["control_text", "control_type" if BACKEND == "uia" else "control_class"],
+            ["control_text", "   " if BACKEND == "uia" else "control_class"],
         )
         self.filtered_control_info = (
             self.control_inspector.get_control_info_list_of_dict(
