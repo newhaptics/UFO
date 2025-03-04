@@ -1251,3 +1251,172 @@ class WordWindowAPI():
     def slider_set(self, slider):
         print(f"{slider [0]} setting to value {slider [1]}")
         slider[0].set_value(slider[1]/10*slider[0].max_value())
+
+    def get_ribbon_font_controls(self, window):
+        """
+        Find font-related controls in the Word ribbon Font group.
+
+        Args:
+            window: The Word application window object
+
+        Returns:
+            Dictionary of font controls indexed by position or None if not found
+        """
+        self.app_window = window
+        self.app_window.set_focus()
+
+        # Make sure we're on the Home tab where the Font group is located
+        def activate_home_tab():
+            """Ensure the Home tab is active"""
+            try:
+                home_tabs = window.descendants(
+                    control_type="TabItem",
+                    title="Home",
+                    depth=10
+                )
+
+                if home_tabs:
+                    print("Found Home tab, clicking to ensure it's active...")
+                    home_tabs[0].click()
+                    return True
+                else:
+                    print("Home tab not found, searching for alternatives...")
+                    # Try looking for the tab with different search methods
+                    tabs = window.descendants(control_type="TabItem", depth=10)
+                    for tab in tabs:
+                        if "Home" in tab.window_text():
+                            print(f"Found alternative Home tab: '{tab.window_text()}'")
+                            tab.click()
+                            return True
+
+                    print("No Home tab found")
+                    return False
+            except Exception as e:
+                print(f"Error activating Home tab: {str(e)}")
+                return False
+
+        # Activate the Home tab to ensure Font group is visible
+        activate_home_tab()
+
+        # Find the Font group
+        font_groups = window.descendants(
+            control_type="Group",
+            title="Font",
+            depth=15
+        )
+
+        if not font_groups:
+            print("Font group not found, trying with alternative approaches...")
+            # Look for any groups that might be the Font group
+            ribbon_panes = window.descendants(control_type="Pane", title="Ribbon", depth=10)
+            if ribbon_panes:
+                print("Found Ribbon pane, searching for Font group inside...")
+                all_groups = ribbon_panes[0].descendants(control_type="Group", depth=5)
+                font_groups = []
+                for group in all_groups:
+                    group_text = group.window_text()
+                    if "Font" in group_text:
+                        print(f"Found potential Font group: '{group_text}'")
+                        font_groups.append(group)
+
+        if not font_groups:
+            print("Font group not found in ribbon")
+            return None
+
+        font_group = font_groups[0]
+        print(f"Found Font group: '{font_group.window_text()}'")
+
+        # The controls we're looking for
+        target_controls = {
+            "font": {"type": "ComboBox", "title": "Font"},
+            "font_size": {"type": "ComboBox", "title": "Font Size"},
+            "grow_font": {"type": "Button", "title": "Grow Font"},
+            "shrink_font": {"type": "Button", "title": "Shrink Font"},
+            "clear_formatting": {"type": "Button", "title": "Clear Formatting"},
+            "bold": {"type": "Button", "title": "Bold"},
+            "italic": {"type": "Button", "title": "Italic"},
+            "underline": {"type": "Button", "title": "Underline"},
+            "strikethrough": {"type": "Button", "title": "Strikethrough"},
+            "subscript": {"type": "Button", "title": "Subscript"},
+            "superscript": {"type": "Button", "title": "Superscript"}
+        }
+
+        # Collect all controls in the Font group
+        all_controls = {}
+        found_controls = {}
+
+        # Get all controls in the Font group
+        control_types = ["Button", "ComboBox", "SplitButton"]
+
+        for control_type in control_types:
+            controls = font_group.descendants(control_type=control_type, depth=5)
+            for control in controls:
+                control_text = control.window_text().strip()
+                all_controls[control_text] = control
+                print(f"Found {control_type}: '{control_text}'")
+
+        # Check for exact matches first
+        for key, control_info in target_controls.items():
+            title = control_info["title"]
+            if title in all_controls:
+                found_controls[key] = all_controls[title]
+                print(f"Found exact match for {key}: '{title}'")
+
+        # Handle special cases for controls that might have slightly different names or need alternative search
+        if "Font" not in all_controls:
+            # Try alternative search for Font ComboBox
+            font_combos = font_group.descendants(control_type="ComboBox", depth=5)
+            for combo in font_combos:
+                if not combo.window_text().strip() or "font" in combo.window_text().lower():
+                    found_controls["font"] = combo
+                    print(f"Found Font ComboBox via alternative search: '{combo.window_text()}'")
+                    break
+
+        if "Font Size" not in all_controls:
+            # Try alternative search for Font Size ComboBox
+            font_size_combos = font_group.descendants(control_type="ComboBox", depth=5)
+            for combo in font_size_combos:
+                combo_text = combo.window_text().strip()
+                if combo_text and any(x.isdigit() for x in combo_text):
+                    found_controls["font_size"] = combo
+                    print(f"Found Font Size ComboBox via alternative search: '{combo_text}'")
+                    break
+
+        # Handle SplitButton Underline specifically
+        # For SplitButton controls, we need to find the actual Button inside the SplitButton
+        underline_splitbuttons = font_group.descendants(control_type="SplitButton", title="Underline", depth=5)
+        if underline_splitbuttons:
+            print("Found Underline SplitButton")
+            # Look for the button within the SplitButton
+            for splitbutton in underline_splitbuttons:
+                underline_buttons = splitbutton.descendants(control_type="Button", title="Underline", depth=2)
+                if underline_buttons:
+                    found_controls["underline"] = underline_buttons[0]
+                    print(f"Found Underline Button within SplitButton: '{underline_buttons[0].window_text()}'")
+                    break
+
+        # Create result dictionary with control names as keys (font, font_size, etc.)
+        result_dict = {}
+        for key, control in found_controls.items():
+            result_dict[key] = control
+
+        # Handle case where we find nothing
+        if not result_dict:
+            print("No font controls found in the Font group")
+            # As a last resort, try to get all controls from the Font group
+            controls = self.inspector.find_control_elements_in_descendants(
+                font_group,
+                control_type_list=["Button", "ComboBox", "SplitButton", "MenuItem"]
+            )
+
+            if controls:
+                for idx, control in enumerate(controls):
+                    control_text = control.window_text().strip()
+                    control_type = control.element_info.control_type
+                    print(f"Found generic control {control_type}: '{control_text}'")
+                    result_dict[f"unknown_{idx}"] = control
+
+            if not result_dict:
+                return None
+
+        return result_dict
