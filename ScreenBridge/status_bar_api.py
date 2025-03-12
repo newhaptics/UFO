@@ -1625,3 +1625,8 @@ class WordWindowAPI():
         return result_dict
 
 
+
+
+if __name__ == "__main__":
+    test = WordWindowAPI()
+    print(test.desktop_windows)
