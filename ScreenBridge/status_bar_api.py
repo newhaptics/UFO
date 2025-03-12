@@ -369,8 +369,8 @@ class WordWindowAPI():
         self.app_window.set_focus()
 
         # Send Alt+Ctrl+P keyboard shortcut
-        import pywinauto
-        pywinauto.keyboard.send_keys('^%p')  # ^ is Ctrl, % is Alt, p is P
+        # import pywinauto
+        # pywinauto.keyboard.send_keys('^%p')  # ^ is Ctrl, % is Alt, p is P
 
         # Initialize empty list if excluded_items is None
         if excluded_items is None:
@@ -498,11 +498,40 @@ class WordWindowAPI():
             import re
             zoom_percentage_pattern = re.compile(r'^Zoom\s+\d+%$')
 
+            # To store the specific buttons we need as strings
+            page_number_str = None
+            language_str = None
+            text_predictions_str = None
+            accessibility_checker_str = None
+
             for item in descendant_controls:
                 # Check if interactive or has meaningful text
                 is_interactive = getattr(item.element_info.element, 'CurrentIsKeyboardFocusable', False)
                 has_text = item.window_text().strip() != ""
                 item_text = item.window_text().strip()
+
+                # We now handle capturing specific buttons in the code block below
+
+                # Check if it's one of our special buttons to capture as string only
+                is_special_button = False
+                if "Page Number" in item_text:
+                    page_number_str = item_text
+                    should_exclude = True
+                    is_special_button = True
+                elif "Language" in item_text:
+                    language_str = item_text
+                    should_exclude= True
+                    is_special_button = True
+                elif "Text Predictions" in item_text:
+                    text_predictions_str = item_text
+                    is_special_button = True
+                elif "Accessibility Checker" in item_text or "Accessibility:" in item_text:
+                    accessibility_checker_str = item_text
+                    is_special_button = True
+
+                # Skip if it's a special button (to be included only as string)
+                if is_special_button:
+                    continue
 
                 # Skip excluded items
                 should_exclude = False
@@ -549,6 +578,16 @@ class WordWindowAPI():
             for item in zoom_in_out_items:
                 result_dict[idx] = item
                 idx += 1
+
+            # Add the specific button strings to the result
+            if page_number_str:
+                result_dict["page_number"] = page_number_str
+            if language_str:
+                result_dict["language"] = language_str
+            if text_predictions_str:
+                result_dict["text_predictions"] = text_predictions_str
+            if accessibility_checker_str:
+                result_dict["accessibility_checker"] = accessibility_checker_str
 
             if not result_dict:
                 print("No non-excluded controls found in the status bar")
