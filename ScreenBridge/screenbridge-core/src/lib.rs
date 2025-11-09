@@ -75,6 +75,14 @@ impl WordAutomation {
         Ok(Self { context })
     }
 
+    /// Get a reference to the underlying automation context
+    ///
+    /// This is useful for advanced scenarios where you need direct access
+    /// to the UI Automation API.
+    pub fn context(&self) -> &AutomationContext {
+        &self.context
+    }
+
     /// Find all Microsoft Word windows
     ///
     /// Returns a list of window handles for all open Word windows.
