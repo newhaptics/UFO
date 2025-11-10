@@ -54,12 +54,14 @@
 pub mod error;
 pub mod elements;
 pub mod automation;
-mod window;
+pub mod discovery; // NEW: Generic window discovery
+mod window;        // Word-specific (will refactor)
 
 // Re-exports
 pub use error::{Result, ScreenBridgeError};
 pub use elements::*;
 pub use automation::AutomationContext;
+pub use discovery::{WindowDiscovery, WindowFilter};
 
 /// Main API for Word UI automation
 pub struct WordAutomation {
@@ -86,9 +88,24 @@ impl WordAutomation {
     /// Find all Microsoft Word windows
     ///
     /// Returns a list of window handles for all open Word windows.
-    /// Optionally filters out dialog windows.
+    /// This is a convenience method that uses the generic WindowDiscovery API.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use screenbridge_core::*;
+    /// # fn example() -> Result<()> {
+    /// let word = WordAutomation::new()?;
+    /// let windows = word.find_windows()?;
+    /// for window in windows {
+    ///     println!("Found Word window: {}", window.title);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn find_windows(&self) -> Result<Vec<WindowHandle>> {
-        window::find_word_windows(&self.context)
+        let discovery = WindowDiscovery::new(&self.context);
+        let filter = WindowFilter::for_process("winword.exe").only_main_windows();
+        discovery.find_windows_with_filter(&filter)
     }
 
     /// Get status bar items from a Word window

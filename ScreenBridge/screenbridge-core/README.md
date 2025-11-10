@@ -1,10 +1,12 @@
 # ScreenBridge Core
 
-**Rust library for Microsoft Word UI automation via Windows UI Automation**
+**Generic Windows UI automation library - works with ANY Windows application**
 
 ## Overview
 
-ScreenBridge Core is a type-safe, performant Rust library that provides programmatic access to Microsoft Word UI elements through the Windows UI Automation API. It enables automation of Word features that aren't accessible through Word's COM API, including:
+ScreenBridge Core is a type-safe, performant Rust library that provides programmatic access to UI elements from **any Windows application** through the Windows UI Automation API.
+
+While initially focused on Microsoft Word, the **generic architecture** supports automation of any Windows app including:
 
 - Status bars and navigation panes
 - Accessibility checker
@@ -62,7 +64,35 @@ This is a Rust rewrite of the original Python implementation (see `../python-leg
 - **Rust**: 1.70+ (2021 edition)
 - **Dependencies**: Windows UI Automation API (included with Windows)
 
-## Usage
+## Quick Start
+
+### Generic API - Works with ANY Application
+
+```rust
+use screenbridge_core::{AutomationContext, WindowDiscovery};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let context = AutomationContext::new()?;
+    let discovery = WindowDiscovery::new(&context);
+
+    // Find Word windows
+    let word_windows = discovery.find_by_process("winword.exe")?;
+
+    // Find Excel windows
+    let excel_windows = discovery.find_by_process("excel.exe")?;
+
+    // Find Chrome windows
+    let chrome_windows = discovery.find_by_process("chrome.exe")?;
+
+    // Find ANY application
+    let all_windows = discovery.find_all_windows()?;
+
+    println!("Found {} windows total", all_windows.len());
+    Ok(())
+}
+```
+
+### App-Specific API - Convenience for Word
 
 ```rust
 use screenbridge_core::WordAutomation;
@@ -70,16 +100,12 @@ use screenbridge_core::WordAutomation;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let word = WordAutomation::new()?;
 
-    // Find all Word windows
+    // Find all Word windows (uses generic discovery internally)
     let windows = word.find_windows()?;
 
-    // Get status bar items
-    let status_bar = word.get_status_bar_items(&windows[0])?;
-    println!("Page number: {:?}", status_bar.page_number);
-
-    // Get accessibility issues
-    let accessibility = word.get_accessibility_items(&windows[0])?;
-    println!("Found {} issues", accessibility.issues.len());
+    // Future: Word-specific features
+    // let status_bar = word.get_status_bar_items(&windows[0])?;
+    // let accessibility = word.get_accessibility_items(&windows[0])?;
 
     Ok(())
 }

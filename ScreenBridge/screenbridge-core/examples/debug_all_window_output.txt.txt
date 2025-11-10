@@ -1,0 +1,96 @@
+PS D:\Github\NHUFO\ScreenBridge\screenbridge-core> cargo run --example debug_all_windows
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running `target\debug\examples\debug_all_windows.exe`
+🔍 UI Automation Debug - What Can We Actually See?
+===================================================
+
+Searching for ALL immediate children of desktop...
+
+✓ Found 13 elements total
+
+Listing all elements:
+
+Element #1
+  Name:    Taskbar
+  Type:    pane
+  Class:   Shell_TrayWnd
+  PID:     10164
+
+Element #2
+  Name:    Windows PowerShell
+  Type:    window
+  Class:   CASCADIA_HOSTING_WINDOW_CLASS
+  PID:     115892
+
+Element #3
+  Name:    ✳ Window Discovery Issues
+  Type:    window
+  Class:   CASCADIA_HOSTING_WINDOW_CLASS
+  PID:     115892
+
+Element #4
+  Name:    (1) T90Official - Twitch — Mozilla Firefox
+  Type:    window
+  Class:   MozillaWindowClass
+  PID:     23432
+
+Element #5
+  Name:    screenbridge-core - File Explorer
+  Type:    window
+  Class:   CabinetWClass
+  PID:     10164
+
+Element #6
+  Name:    Introduction - Word
+  Type:    window
+  Class:   OpusApp
+  PID:     107084
+
+Element #7
+  Name:    Chris (DM) - NewHaptics - Slack
+  Type:    pane
+  Class:   Chrome_WidgetWin_1
+  PID:     28984
+
+Element #8
+  Name:    GPIO [Motherboard V10/SOM] — Schematic Editor
+  Type:    window
+  Class:   wxWindowNR
+  PID:     44952
+
+Element #9
+  Name:    Motherboard V10 — PCB Editor
+  Type:    window
+  Class:   wxWindowNR
+  PID:     44952
+
+Element #10
+  Name:    Motherboard V10 — KiCad 9.0
+  Type:    window
+  Class:   wxWindowNR
+  PID:     44952
+
+Element #11
+  Name:    NVIDIA GeForce Overlay
+  Type:    pane
+  Class:   CEF-OSC-WIDGET
+  PID:     17952
+
+Element #12
+  Name:    README.md - Visual Studio Code
+  Type:    pane
+  Class:   Chrome_WidgetWin_1
+  PID:     149136
+
+Element #13
+  Name:    Program Manager
+  Type:    pane
+  Class:   Progman
+  PID:     10164
+
+
+💡 Analysis:
+  - If you see many 'window' types, enumeration works
+  - If you see your apps listed, the problem is in our filtering
+  - If apps are missing, they might be using different window structures
+PS D:\Github\NHUFO\ScreenBridge\screenbridge-core>

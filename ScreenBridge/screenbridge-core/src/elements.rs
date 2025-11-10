@@ -65,6 +65,83 @@ impl UIElement {
         }
     }
 
+    /// Check if the element is visible (not hidden)
+    ///
+    /// This is a UIA property that indicates if the element is visible to the user.
+    pub fn is_visible(&self) -> Result<bool> {
+        unsafe {
+            self.element
+                .CurrentIsOffscreen()
+                .map(|b| !b.as_bool()) // Invert: if NOT offscreen, then visible
+                .map_err(|e| {
+                    ScreenBridgeError::PropertyError(format!("Failed to check visibility: {}", e))
+                })
+        }
+    }
+
+    /// Check if the element is offscreen (not visible on any monitor)
+    pub fn is_offscreen(&self) -> Result<bool> {
+        unsafe {
+            self.element.CurrentIsOffscreen().map(|b| b.as_bool()).map_err(
+                |e| ScreenBridgeError::PropertyError(format!("Failed to check offscreen: {}", e)),
+            )
+        }
+    }
+
+    /// Check if the element is a keyboard focusable element
+    pub fn is_keyboard_focusable(&self) -> Result<bool> {
+        unsafe {
+            self.element
+                .CurrentIsKeyboardFocusable()
+                .map(|b| b.as_bool())
+                .map_err(|e| {
+                    ScreenBridgeError::PropertyError(format!(
+                        "Failed to check keyboard focusable: {}",
+                        e
+                    ))
+                })
+        }
+    }
+
+    /// Get the bounding rectangle of the element
+    ///
+    /// Returns (left, top, width, height) in screen coordinates
+    pub fn bounding_rectangle(&self) -> Result<(i32, i32, i32, i32)> {
+        unsafe {
+            self.element.CurrentBoundingRectangle().map(|rect| {
+                (
+                    rect.left as i32,
+                    rect.top as i32,
+                    (rect.right - rect.left) as i32,
+                    (rect.bottom - rect.top) as i32,
+                )
+            }).map_err(|e| {
+                ScreenBridgeError::PropertyError(format!("Failed to get bounding rectangle: {}", e))
+            })
+        }
+    }
+
+    /// Get the framework ID (e.g., "Win32", "WPF", "WinForm")
+    pub fn framework_id(&self) -> Result<String> {
+        unsafe {
+            self.element
+                .CurrentFrameworkId()
+                .map(|bstr| bstr.to_string())
+                .map_err(|e| {
+                    ScreenBridgeError::PropertyError(format!("Failed to get framework ID: {}", e))
+                })
+        }
+    }
+
+    /// Get the process ID that owns this element
+    pub fn process_id(&self) -> Result<i32> {
+        unsafe {
+            self.element.CurrentProcessId().map_err(|e| {
+                ScreenBridgeError::PropertyError(format!("Failed to get process ID: {}", e))
+            })
+        }
+    }
+
     /// Get the element's class name
     pub fn class_name(&self) -> Result<String> {
         unsafe {

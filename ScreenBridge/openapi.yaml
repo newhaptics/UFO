@@ -1,0 +1,535 @@
+openapi: 3.0.3
+info:
+  title: ScreenBridge Query Protocol
+  description: |
+    JSON-based query protocol for accessing Windows UI Automation data.
+    Designed for assistive devices (braille displays, screen readers) to access
+    structured UI information from Windows applications.
+
+    **Note**: This is not a REST API. It uses JSON-RPC style request/response
+    over line-delimited JSON transport (Named Pipe, TCP, stdin/stdout).
+  version: 1.0.0
+  contact:
+    name: ScreenBridge Team
+    url: https://github.com/microsoft/UFO
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: tcp://localhost:7878
+    description: Local TCP server
+  - url: pipe://./pipe/screenbridge
+    description: Windows Named Pipe
+  - url: stdio://
+    description: Stdin/Stdout communication
+
+paths: {}  # Not REST, so no paths
+
+components:
+  schemas:
+    # Base request/response types
+    BaseRequest:
+      type: object
+      required:
+        - request_id
+        - query
+      properties:
+        request_id:
+          type: string
+          description: Unique identifier for this request
+          example: "req_001"
+        query:
+          type: string
+          description: Type of query to execute
+          enum:
+            - list_windows
+            - get_window_elements
+            - get_element_properties
+            - get_element_children
+            - ping
+            - clear_cache
+        params:
+          type: object
+          description: Query-specific parameters
+          additionalProperties: true
+
+    BaseResponse:
+      type: object
+      required:
+        - request_id
+        - status
+      properties:
+        request_id:
+          type: string
+          description: Matches the request ID
+        status:
+          type: string
+          enum: [success, error]
+          description: Response status
+      discriminator:
+        propertyName: status
+        mapping:
+          success: '#/components/schemas/SuccessResponse'
+          error: '#/components/schemas/ErrorResponse'
+
+    SuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              description: Query-specific response data
+              additionalProperties: true
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - error
+          properties:
+            error:
+              $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - INVALID_REQUEST
+            - UNKNOWN_QUERY
+            - INVALID_PARAMS
+            - ELEMENT_NOT_FOUND
+            - WINDOW_NOT_FOUND
+            - UIA_ERROR
+            - INTERNAL_ERROR
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error context
+          additionalProperties: true
+
+    # Query-specific types
+    ListWindowsRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            query:
+              type: string
+              enum: [list_windows]
+            params:
+              $ref: '#/components/schemas/ListWindowsParams'
+
+    ListWindowsParams:
+      type: object
+      properties:
+        filters:
+          $ref: '#/components/schemas/WindowFilters'
+
+    WindowFilters:
+      type: object
+      properties:
+        process_name:
+          type: string
+          description: Filter by process name (e.g., "winword.exe")
+          example: "winword.exe"
+        title_contains:
+          type: string
+          description: Filter by window title substring
+          example: "Document"
+        visible_only:
+          type: boolean
+          description: Only return visible windows
+          default: false
+        focusable_only:
+          type: boolean
+          description: Only return keyboard focusable windows
+          default: false
+        main_windows_only:
+          type: boolean
+          description: Exclude dialog windows
+          default: false
+
+    ListWindowsResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              required:
+                - windows
+                - count
+              properties:
+                windows:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WindowInfo'
+                count:
+                  type: integer
+                  description: Number of windows returned
+
+    WindowInfo:
+      type: object
+      required:
+        - window_id
+        - title
+        - process_id
+      properties:
+        window_id:
+          type: string
+          description: Unique window identifier
+          example: "win_107084_abc123"
+        title:
+          type: string
+          description: Window title
+          example: "Introduction - Word"
+        process_name:
+          type: string
+          description: Process executable name
+          example: "winword.exe"
+        process_id:
+          type: integer
+          description: Process ID
+          example: 107084
+        class_name:
+          type: string
+          description: Window class name
+          example: "OpusApp"
+        control_type:
+          type: string
+          enum: [window, pane]
+          description: UIA control type
+        visible:
+          type: boolean
+          description: Window is visible
+        focusable:
+          type: boolean
+          description: Window can receive keyboard focus
+        offscreen:
+          type: boolean
+          description: Window is off all monitors
+        enabled:
+          type: boolean
+          description: Window is enabled
+        bounds:
+          $ref: '#/components/schemas/Rectangle'
+        framework:
+          type: string
+          description: UI framework (Win32, WPF, Electron, etc.)
+          example: "Win32"
+
+    Rectangle:
+      type: object
+      required:
+        - x
+        - y
+        - width
+        - height
+      properties:
+        x:
+          type: integer
+          description: Left coordinate in screen pixels
+        y:
+          type: integer
+          description: Top coordinate in screen pixels
+        width:
+          type: integer
+          description: Width in pixels
+        height:
+          type: integer
+          description: Height in pixels
+
+    GetWindowElementsRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            query:
+              type: string
+              enum: [get_window_elements]
+            params:
+              $ref: '#/components/schemas/GetWindowElementsParams'
+
+    GetWindowElementsParams:
+      type: object
+      required:
+        - window_id
+      properties:
+        window_id:
+          type: string
+          description: Window ID from list_windows
+          example: "win_107084_abc123"
+        max_depth:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+          description: Maximum depth to traverse UI tree
+        element_types:
+          type: array
+          items:
+            type: string
+          description: Filter by control types
+          example: ["pane", "button", "text"]
+        visible_only:
+          type: boolean
+          default: false
+          description: Only return visible elements
+
+    GetWindowElementsResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              required:
+                - window_id
+                - elements
+                - count
+              properties:
+                window_id:
+                  type: string
+                  description: Window ID
+                elements:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ElementInfo'
+                count:
+                  type: integer
+                  description: Number of elements returned
+
+    ElementInfo:
+      type: object
+      required:
+        - element_id
+        - name
+        - control_type
+      properties:
+        element_id:
+          type: string
+          description: Unique element identifier
+          example: "elem_status_bar_001"
+        name:
+          type: string
+          description: Element name/title
+          example: "Status Bar"
+        control_type:
+          type: string
+          description: UIA control type
+          example: "pane"
+        class_name:
+          type: string
+          description: Class name
+          example: "MsoDockBottom"
+        automation_id:
+          type: string
+          description: Automation ID (may be empty)
+        visible:
+          type: boolean
+          description: Element is visible
+        enabled:
+          type: boolean
+          description: Element is enabled
+        focusable:
+          type: boolean
+          description: Element can receive keyboard focus
+        offscreen:
+          type: boolean
+          description: Element is off screen
+        bounds:
+          $ref: '#/components/schemas/Rectangle'
+        depth:
+          type: integer
+          description: Depth in UI tree from window root
+          example: 1
+        children_count:
+          type: integer
+          description: Number of child elements
+          example: 5
+        framework:
+          type: string
+          description: UI framework
+          example: "Win32"
+
+    GetElementPropertiesRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            query:
+              type: string
+              enum: [get_element_properties]
+            params:
+              $ref: '#/components/schemas/GetElementPropertiesParams'
+
+    GetElementPropertiesParams:
+      type: object
+      required:
+        - element_id
+      properties:
+        element_id:
+          type: string
+          description: Element ID from previous query
+          example: "elem_status_bar_001"
+        properties:
+          type: array
+          items:
+            type: string
+            enum:
+              - name
+              - control_type
+              - class_name
+              - automation_id
+              - visible
+              - enabled
+              - focusable
+              - offscreen
+              - bounds
+              - framework
+              - children_count
+              - value
+              - description
+          description: Specific properties to query (omit for all)
+
+    GetElementPropertiesResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              required:
+                - element_id
+                - properties
+              properties:
+                element_id:
+                  type: string
+                  description: Element ID
+                properties:
+                  type: object
+                  description: Requested properties
+                  additionalProperties: true
+
+    PingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            query:
+              type: string
+              enum: [ping]
+
+    PingResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              required:
+                - pong
+                - server_version
+              properties:
+                pong:
+                  type: boolean
+                  enum: [true]
+                server_version:
+                  type: string
+                  example: "1.0.0"
+                timestamp:
+                  type: string
+                  format: date-time
+                  description: Server timestamp (ISO 8601)
+
+    ClearCacheRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            query:
+              type: string
+              enum: [clear_cache]
+
+    ClearCacheResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              required:
+                - cleared
+                - elements_removed
+              properties:
+                cleared:
+                  type: boolean
+                  enum: [true]
+                elements_removed:
+                  type: integer
+                  description: Number of elements removed from cache
+
+  examples:
+    ListWindowsExample:
+      value:
+        request_id: "req_001"
+        query: "list_windows"
+        params:
+          filters:
+            visible_only: true
+            focusable_only: true
+
+    ListWindowsResponseExample:
+      value:
+        request_id: "req_001"
+        status: "success"
+        data:
+          windows:
+            - window_id: "win_107084_abc123"
+              title: "Introduction - Word"
+              process_name: "winword.exe"
+              process_id: 107084
+              class_name: "OpusApp"
+              control_type: "window"
+              visible: true
+              focusable: true
+              offscreen: false
+              enabled: true
+              bounds:
+                x: 0
+                y: 0
+                width: 1920
+                height: 1080
+              framework: "Win32"
+          count: 1
+
+    ErrorExample:
+      value:
+        request_id: "req_999"
+        status: "error"
+        error:
+          code: "ELEMENT_NOT_FOUND"
+          message: "Element with ID 'elem_invalid' not found in cache"
+          details:
+            element_id: "elem_invalid"
+
+tags:
+  - name: Window Queries
+    description: Operations for discovering and querying windows
+  - name: Element Queries
+    description: Operations for querying UI elements within windows
+  - name: Utility
+    description: Utility operations (ping, cache management)
